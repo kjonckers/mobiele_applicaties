@@ -47,11 +47,11 @@ public class LoginFragment extends Fragment {
     private AccessTokenTracker mTokenTracker;
     private User currentUser;
     private ProfileTracker mProfileTracker;
+    private View backgroundLayout;
     private FacebookCallback<LoginResult> mCallback = new FacebookCallback<LoginResult>() {
         @Override
         public void onSuccess(LoginResult loginResult) {
             authButton.setVisibility(View.GONE);
-            progressBar.setVisibility(View.VISIBLE);
             AccessToken accessToken = loginResult.getAccessToken();
             Profile profile = Profile.getCurrentProfile();
             try {
@@ -129,10 +129,6 @@ public class LoginFragment extends Fragment {
         authButton = (LoginButton) view.findViewById(R.id.authButton);
         authButton.setFragment(this);
 
-        progressBar = (ImageView) view.findViewById(R.id.progressBar);
-        progressBar.setVisibility(View.GONE);
-
-
         return view;
     }
 
@@ -190,4 +186,6 @@ public class LoginFragment extends Fragment {
         mTokenTracker.stopTracking();
         mProfileTracker.stopTracking();
     }
+
+
 }
