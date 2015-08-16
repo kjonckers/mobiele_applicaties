@@ -9,16 +9,25 @@ import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
+
+import com.example.kjonckers.hypt.db.UserDatabase;
 import com.facebook.AccessToken;
+import com.facebook.AccessTokenTracker;
 import com.facebook.CallbackManager;
 import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
 import com.facebook.FacebookSdk;
 import com.facebook.Profile;
+import com.facebook.ProfileTracker;
 import com.facebook.login.LoginResult;
 import com.facebook.login.widget.LoginButton;
+
+import domain.GeoLocation;
+import domain.User;
+import exceptions.DomainException;
 
 
 /**
@@ -32,12 +41,31 @@ import com.facebook.login.widget.LoginButton;
 public class LoginFragment extends Fragment {
 
     private CallbackManager mCallbackManager;
+    private LoginButton authButton;
+    private ImageView progressBar;
+    private UserDatabase userDB = new UserDatabase();
+    private AccessTokenTracker mTokenTracker;
+    private User currentUser;
+    private ProfileTracker mProfileTracker;
     private FacebookCallback<LoginResult> mCallback = new FacebookCallback<LoginResult>() {
         @Override
         public void onSuccess(LoginResult loginResult) {
+            authButton.setVisibility(View.GONE);
+            progressBar.setVisibility(View.VISIBLE);
             AccessToken accessToken = loginResult.getAccessToken();
             Profile profile = Profile.getCurrentProfile();
+            try {
+                User user = new User(profile.getId().toString(), profile.getFirstName(), profile.getLastName(), new GeoLocation(0,0));
+                currentUser = user;
+                userDB.updateUser(user);
+            } catch (DomainException e) {
+                e.printStackTrace();
+            }
 
+            final Activity activity = getActivity();
+            Intent intent = new Intent(activity, MainActivity.class);
+            intent.putExtra("currentUser", currentUser);
+            startActivity(intent);
 
         }
 
@@ -76,9 +104,20 @@ public class LoginFragment extends Fragment {
         super.onCreate(savedInstanceState);
         FacebookSdk.sdkInitialize(getActivity().getApplicationContext());
         mCallbackManager = CallbackManager.Factory.create();
-        final Activity activity = getActivity();
-        Intent intent = new Intent(activity, MainActivity.class);
-        startActivity(intent);
+        mTokenTracker = new AccessTokenTracker() {
+            @Override
+            protected void onCurrentAccessTokenChanged(AccessToken oldToken, AccessToken newToken) {
+
+            }
+        };
+        mProfileTracker  = new ProfileTracker() {
+            @Override
+            protected void onCurrentProfileChanged(Profile oldProfile, Profile newProfile) {
+
+            }
+        };
+        mTokenTracker.startTracking();
+        mProfileTracker.startTracking();
 
     }
 
@@ -86,15 +125,17 @@ public class LoginFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_login, container, false);
+        View view = inflater.inflate(R.layout.fragment_login, container, false);
+        authButton = (LoginButton) view.findViewById(R.id.authButton);
+        authButton.setFragment(this);
+
+        progressBar = (ImageView) view.findViewById(R.id.progressBar);
+        progressBar.setVisibility(View.GONE);
+
+
+        return view;
     }
 
-    // TODO: Rename method, update argument and hook method into UI event
-    public void onButtonPressed(Uri uri) {
-        if (mListener != null) {
-            mListener.onFragmentInteraction(uri);
-        }
-    }
 
     @Override
     public void onAttach(Activity activity) {
@@ -131,9 +172,9 @@ public class LoginFragment extends Fragment {
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        LoginButton loginButton = (LoginButton) view.findViewById(R.id.login_button);
+        LoginButton loginButton = (LoginButton) view.findViewById(R.id.authButton);
         loginButton.setFragment(this);
-        loginButton.registerCallback(mCallbackManager,mCallback);
+        loginButton.registerCallback(mCallbackManager, mCallback);
     }
 
     @Override
@@ -141,5 +182,12 @@ public class LoginFragment extends Fragment {
         super.onActivityResult(requestCode, resultCode, data);
         mCallbackManager.onActivityResult(requestCode, resultCode, data);
 
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        mTokenTracker.stopTracking();
+        mProfileTracker.stopTracking();
     }
 }
